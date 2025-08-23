@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Pastel theme with improved visibility */
+    --background: 30 60% 98%;
+    --foreground: 0 0% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --primary: 25 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 20% 95%;
+    --secondary-foreground: 0 0% 15%;
+    --muted: 30 20% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 30 30% 92%;
+    --accent-foreground: 0 0% 15%;
+    --destructive: 0 50% 70%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 20% 88%;
+    --input: 0 0% 100%;
+    --ring: 25 100% 60%;
+    --radius: 0.75rem;
+  }
+  
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  body {
+    @apply bg-cream-50 text-charcoal-800 font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .card-soft {
+    @apply bg-white/60 backdrop-blur-sm border border-peach-100 shadow-sm;
+  }
+  
+  .btn-primary {
+    @apply bg-peach-300 hover:bg-peach-400 text-charcoal-800 font-medium transition-colors;
+  }
+  
+  .text-primary {
+    @apply text-charcoal-800;
+  }
+  
+  .text-secondary {
+    @apply text-charcoal-600;
+  }
+  
+  /* Fix dropdown and slider visibility */
+  .dropdown-content,
+  [data-radix-popper-content-wrapper],
+  [role="listbox"],
+  [role="menu"] {
+    @apply bg-white border border-gray-200 shadow-lg;
+  }
+  
+  /* Ensure slider tracks are visible */
+  [data-radix-slider-track] {
+    @apply bg-cream-200 h-2 rounded-full;
+  }
+  
+  [data-radix-slider-range] {
+    @apply bg-peach-400 h-2 rounded-full;
+  }
+  
+  [data-radix-slider-thumb] {
+    @apply bg-white border-2 border-peach-400 shadow-md w-5 h-5 rounded-full;
+  }
+  
+  /* Additional slider styling for better visibility */
+  .slider-root {
+    @apply relative flex items-center select-none touch-none w-full h-5;
+  }
+  
+  .slider-track {
+    @apply bg-cream-200 relative grow rounded-full h-2;
+  }
+  
+  .slider-range {
+    @apply absolute bg-peach-400 rounded-full h-full;
+  }
+  
+  .slider-thumb {
+    @apply block w-5 h-5 bg-white border-2 border-peach-400 rounded-full shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-peach-300 focus:ring-offset-2 transition-all;
+  }
+  
+  /* Select component fixes */
+  [data-radix-select-content] {
+    @apply bg-white border border-gray-200 shadow-lg;
+  }
+  
+  [data-radix-select-item] {
+    @apply hover:bg-gray-50;
+  }
+}
