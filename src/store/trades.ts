@@ -245,7 +245,7 @@ export const useTradeStore = create<TradeState>()(
       getReflectionByTradeId: (tradeId) => get().reflections.find((r) => r.tradeId === tradeId),
     }),
     {
-      name: 'memecoin-trades-storage',
+      name: 'fiona-trades-storage',
     }
   )
 );

@@ -88,6 +88,6 @@ export const usePsychProfileStore = create<PsychProfileState>()(
       },
       reset: () => set({ profile: initial }),
     }),
-    { name: 'psych_profile_v1' }
+    { name: 'fiona-psych-profile-v1' }
   )
 )

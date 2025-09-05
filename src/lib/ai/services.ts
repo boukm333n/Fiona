@@ -2,6 +2,10 @@ import { SYSTEM_PROMPTS, AIResponse } from './config'
 import { Trade, BehaviorData as TradePsychology } from '@/store/trades'
 import { calculateTradePerformance } from '@/lib/utils'
 
+// Resolve model from environment with user-preferred default
+const MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini'
+const FALLBACK_MODELS = ['gpt-4o-mini', 'gpt-4o'] as const
+
 // OpenAI chat helper (uses REST API to avoid extra deps)
 async function callOpenAI(
   systemPrompt: string,
@@ -12,26 +16,39 @@ async function callOpenAI(
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('Missing OPENAI_API_KEY')
   }
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.5,
-      max_tokens: maxTokens,
-    }),
-  })
+  const makeReq = async (mdl: string) =>
+    fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: mdl,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.5,
+        max_tokens: maxTokens,
+      }),
+    })
 
+  let resp = await makeReq(model)
   if (!resp.ok) {
-    const detail = await resp.text()
-    throw new Error(`OpenAI error: ${detail}`)
+    const errText = await resp.text()
+    const shouldFallback = resp.status === 400 || resp.status === 404 || /model|not\s*found|invalid/i.test(errText)
+    if (shouldFallback) {
+      for (const fb of FALLBACK_MODELS) {
+        if (fb === model) continue
+        resp = await makeReq(fb)
+        if (resp.ok) break
+      }
+    }
+    if (!resp.ok) {
+      const detail = await resp.text()
+      throw new Error(`OpenAI error: ${detail}`)
+    }
   }
 
   const data = await resp.json()
@@ -44,7 +61,7 @@ export async function analyzeTradeSetup(
 ): Promise<AIResponse> {
   try {
     const prompt = `
-Analyze this memecoin trade setup:
+Analyze this trade setup:
 
 Token: ${trade.tokenName} (${trade.ticker})
 Entry Market Cap: $${new Intl.NumberFormat('en-US').format(Number(trade.entryMarketCap ?? 0))}
@@ -69,7 +86,7 @@ Provide:
     const content = await callOpenAI(
       SYSTEM_PROMPTS.tradeAnalysis,
       prompt,
-      'gpt-4o-mini',
+      MODEL,
       1000
     )
     
@@ -115,7 +132,7 @@ Provide specific exit recommendations.
     const content = await callOpenAI(
       SYSTEM_PROMPTS.exitStrategy,
       prompt,
-      'gpt-4o-mini',
+      MODEL,
       500
     )
     
@@ -150,7 +167,7 @@ Provide:
     const content = await callOpenAI(
       SYSTEM_PROMPTS.patternRecognition,
       prompt,
-      'gpt-4o',
+      MODEL,
       1500
     )
     
@@ -192,7 +209,7 @@ Provide personalized coaching advice.
     const content = await callOpenAI(
       SYSTEM_PROMPTS.coaching,
       prompt,
-      'gpt-4o-mini',
+      MODEL,
       800
     )
     

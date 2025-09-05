@@ -40,8 +40,8 @@ export function Navigation() {
   return (
     <aside className="flex flex-col h-full bg-stone-100 border-r border-stone-200/80 w-64">
       <div className="p-6">
-        <h1 className="text-xl font-serif font-semibold text-stone-800">HADES</h1>
-        <p className="text-xs text-stone-500 mt-1">Psychological Edge</p>
+        <h1 className="text-xl font-serif font-semibold text-stone-800">Fiona</h1>
+        <p className="text-xs text-stone-500 mt-1">Mental Health Assistant</p>
       </div>
       
       <div className="px-4">

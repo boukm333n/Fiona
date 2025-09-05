@@ -1,21 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { SYSTEM_PROMPTS } from '@/lib/ai/config'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
 
-const SYSTEM_PROMPT = `
-You are “Fiona,” a compassionate, firm CBT coach for memecoin traders on Solana.
-Objectives: build safety and motivation; teach CBT through doing; improve decision quality; reduce harm; increase self-efficacy.
-Boundaries: not medical advice; encourage professional help when needed; escalate gently on risk flags.
-Voice: validating, clear, practical. Use trader-friendly language.
-Rules: validate first, then focus; one step at a time; end with: micro-task + 1-sentence reflection + brief summary.
-Workflow: Trigger → Thought → Emotion → Urge → Action → Outcome; identify distortions & evidence; balanced alternative; behavioral experiment; implementation intention.
-Output Contract: conversational reply. Also include a machine-readable block at the end exactly in this shape:
-COACH_LOG = {"summary":"...","micro_task":"...","next_checkin_suggestion":"...","tags":[],"risk_flags":[]}
-`
+// Simple in-memory rate limiter per IP
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 30
+const rateMap = new Map<string, { count: number; windowStart: number }>()
+
+// Fallback models if primary model is unavailable
+const FALLBACK_MODELS = ['gpt-4o-mini', 'gpt-4o'] as const
+
+// Request validation
+const MessageSchema = z.object({
+  role: z.enum(['user', 'assistant', 'system']),
+  content: z.string().min(1).max(5000),
+})
+
+const RequestSchema = z
+  .object({
+    messages: z.array(MessageSchema).optional(),
+    prompt: z.string().min(1).max(5000).optional(),
+    context: z.string().max(5000).optional(),
+  })
+  .refine(
+    (d) => (Array.isArray(d.messages) && d.messages.length > 0) || (typeof d.prompt === 'string' && d.prompt.trim().length > 0),
+    { message: 'Provide either messages[] or prompt' }
+  )
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    // Rate limit
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const now = Date.now()
+    const entry = rateMap.get(ip) || { count: 0, windowStart: now }
+    if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+      entry.count = 0
+      entry.windowStart = now
+    }
+    entry.count += 1
+    rateMap.set(ip, entry)
+    if (entry.count > RATE_LIMIT_MAX) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
+    // Validate body
+    const raw = await req.json()
+    const parsed = RequestSchema.safeParse(raw)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request', detail: parsed.error.flatten() }, { status: 400 })
+    }
+    const body = parsed.data
     // Accepts either a single prompt or chat-style messages
     const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = Array.isArray(body?.messages) ? body.messages : []
     let lastUser = typeof body?.prompt === 'string' ? body.prompt : ''
@@ -32,17 +68,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing OPENAI_API_KEY' }, { status: 500 })
     }
 
+    const model = process.env.OPENAI_MODEL || 'gpt-5-mini'
     const payload = {
-      model: 'gpt-4o-mini',
+      model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: SYSTEM_PROMPTS.fionaCoach },
         ...(body?.context ? [{ role: 'system', content: `Context:\n${body.context}` as const }] : []),
         { role: 'user', content: lastUser || 'Say hello as Fiona to begin a short CBT check-in.' },
       ],
       temperature: 0.5,
     }
 
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    let resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -53,7 +90,27 @@ export async function POST(req: NextRequest) {
 
     if (!resp.ok) {
       const errText = await resp.text()
-      return NextResponse.json({ error: 'OpenAI error', detail: errText }, { status: 500 })
+      // Try graceful fallback if the error likely relates to model availability
+      const shouldFallback = resp.status === 400 || resp.status === 404 || /model|not\s*found|invalid/i.test(errText)
+      if (shouldFallback) {
+        for (const fb of FALLBACK_MODELS) {
+          if (fb === model) continue
+          const fbPayload = { ...payload, model: fb }
+          resp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify(fbPayload),
+          })
+          if (resp.ok) break
+        }
+      }
+      if (!resp.ok) {
+        const detail = await resp.text()
+        return NextResponse.json({ error: 'OpenAI error', detail }, { status: 500 })
+      }
     }
 
     const data = await resp.json()

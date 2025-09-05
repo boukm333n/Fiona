@@ -37,7 +37,7 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-3xl font-serif font-bold tracking-tight text-stone-800">Dashboard</h2>
         <p className="text-stone-500">
-          Your memecoin trading performance at a glance
+          Your trading performance at a glance
         </p>
       </div>
 

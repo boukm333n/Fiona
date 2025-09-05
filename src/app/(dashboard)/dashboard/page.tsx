@@ -16,7 +16,7 @@ export default function DashboardPage() {
       <div className="border-b border-peach-100 pb-6">
         <h1 className="text-4xl font-serif font-semibold text-charcoal-800 mb-2">Dashboard</h1>
         <p className="text-charcoal-600 font-light">
-          Your memecoin trading command center
+          Your trading psychology and performance dashboard
         </p>
       </div>
 
